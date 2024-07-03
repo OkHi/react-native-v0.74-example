@@ -1,118 +1,92 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+/* eslint-disable react-native/no-inline-styles */
+import React, {useEffect, useState} from 'react';
 import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
   View,
+  Button,
+  Text,
+  Platform,
+  PlatformColor,
+  Appearance,
 } from 'react-native';
-
 import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+  OkHiLocationManager,
+  OkHiUser,
+  initialize as initializeOkHi,
+} from 'react-native-okhi';
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+const USER: OkHiUser = {
+  phone: '+254700000000',
+  firstName: 'Jane',
+  lastName: 'Doe',
+  email: 'janedoe@okhi.co',
+};
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+const logError = (error: any) => {
+  console.log(`${error.code}, ${error.message}`);
+};
+
+const useOkHi = () => {
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    initializeOkHi({
+      credentials: {
+        branchId: '', // your branch ID
+        clientKey: '', // your client key
+      },
+      context: {
+        mode: 'prod',
+      },
+      notification: {
+        title: 'Address verification in progress',
+        text: 'Tap here to view your verification status.',
+        channelId: 'okhi',
+        channelName: 'OkHi Channel',
+        channelDescription: 'OkHi verification alerts',
+      },
+    })
+      .then(() => setInitialized(true))
+      .catch(logError);
+  }, []);
+
+  return {initialized};
+};
+
+const App = () => {
+  const {initialized} = useOkHi();
+  const [launch, setLaunch] = useState(false);
+  const [locationId, setLocationId] = useState('');
   return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
+    <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+      {locationId ? (
+        <Text
+          style={{
+            color: Appearance.getColorScheme() === 'dark' ? 'white' : 'black',
+            fontSize: 32,
+          }}>{`successfully started verification for: ${locationId}`}</Text>
+      ) : (
+        <Button title="Verify Address" onPress={() => setLaunch(true)} />
+      )}
+      <OkHiLocationManager
+        launch={launch && initialized}
+        user={USER}
+        onCloseRequest={() => setLaunch(false)}
+        onError={error => {
+          logError(error);
+          setLaunch(false);
+        }}
+        onSuccess={async response => {
+          try {
+            setLocationId(await response.startVerification());
+          } catch (error) {
+            logError(error);
+          } finally {
+            setLaunch(false);
+          }
+        }}
+      />
     </View>
   );
-}
-
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
-  return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+};
 
 export default App;
